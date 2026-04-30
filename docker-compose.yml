@@ -20,7 +20,7 @@ services:
     networks:
       - aaaimx-net
 
-  # ── Auth (Spring Boot · puerto 8090) ───────────────────────────────
+  # ── Auth Service (Spring Boot · puerto 8090) ───────────────────────
   auth:
     build:
       context: ./auth
@@ -39,33 +39,6 @@ services:
     networks:
       - aaaimx-net
 
-  # ── Micro1 (Node.js / Express · puerto 3000) ──────────────────────
-  micro1:
-    build:
-      context: ./aaaimx_micro1
-      dockerfile: Dockerfile
-    container_name: micro1-service
-    restart: unless-stopped
-    ports:
-      - "3000:3000"
-    environment:
-      PORT: 3000
-    networks:
-      - aaaimx-net
-
-  # ── App2 (.NET · puerto 4000) ──────────────────────────────────────
-  # Descomenta cuando tengas el Dockerfile listo en ./app2
-  # app2:
-  #   build:
-  #     context: ./app2
-  #     dockerfile: Dockerfile
-  #   container_name: app2-service
-  #   restart: unless-stopped
-  #   ports:
-  #     - "4000:4000"
-  #   networks:
-  #     - aaaimx-net
-
   # ── API Gateway (Spring Cloud Gateway · puerto 8080) ───────────────
   gateway:
     build:
@@ -77,14 +50,15 @@ services:
       - "8080:8080"
     depends_on:
       - auth
-      - micro1
-      # - app2
     networks:
       - aaaimx-net
 
+# ── Red compartida ─────────────────────────────────────────────────
+# name fijo para que los microservicios externos puedan unirse
 networks:
   aaaimx-net:
     driver: bridge
+    name: aaaimx-net
 
 volumes:
   auth-mysql-data:

@@ -135,11 +135,9 @@ La primera vez tarda 3-5 minutos porque Maven y npm descargan dependencias dentr
 ./stack.sh logs                # Logs de todos los servicios en tiempo real
 ./stack.sh logs gateway        # Logs solo del gateway
 ./stack.sh logs auth           # Logs solo del auth
-./stack.sh logs micro1         # Logs solo del micro1
 ./stack.sh ps                  # Estado de todos los contenedores
 ./stack.sh rebuild gateway     # Reconstruye solo el gateway
 ./stack.sh rebuild auth        # Reconstruye solo el auth
-./stack.sh rebuild micro1      # Reconstruye solo el micro1
 ```
 
 ---
@@ -172,48 +170,58 @@ curl -X POST http://localhost:8080/micro1/api/test/echo \
 
 ---
 
-## Estructura del proyecto
+## Estructura de repositorios
+
+Este proyecto sigue el patrón **polyrepo**: la infraestructura central vive en un repositorio y cada microservicio de negocio tiene el suyo propio.
 
 ```
-AAAIMX/
-├── docker-compose.yml        # Orquesta todos los servicios y la red interna
-├── stack.sh                  # Script para manejar el stack completo
-├── .gitignore
-├── README.md
-│
+Repo: AAAIMX  (este repositorio — infraestructura central)
+├── docker-compose.yml        # Levanta auth + gateway + mysql + crea la red aaaimx-net
+├── stack.sh
 ├── auth/                     # Auth Service — Spring Boot
-│   ├── Dockerfile
-│   ├── pom.xml
-│   └── src/main/
-│       ├── java/com/auth/aaaimx/
-│       │   └── model/User.java
-│       └── resources/application.properties
-│
-├── gateway/                  # API Gateway — Spring Cloud Gateway MVC
-│   ├── Dockerfile
-│   ├── pom.xml
-│   └── src/main/resources/application.yml
-│
-└── aaaimx_micro1/            # App1 — Node.js + Express
-    ├── Dockerfile
-    ├── package.json
-    └── src/
-        ├── app.js
-        ├── controllers/
-        └── routes/
+└── gateway/                  # API Gateway — Spring Cloud Gateway MVC
+
+Repo: aaaimx_micro1  (repositorio independiente)
+├── docker-compose.yml        # Se une a la red aaaimx-net existente
+├── micro1.sh
+├── Dockerfile
+└── src/
+
+Repo: aaaimx_micro2  (repositorio independiente — próximamente)
+└── ...
 ```
+
+Todos los microservicios se comunican a través de la red Docker `aaaimx-net` sin importar en qué repositorio estén.
 
 ---
 
-## Agregar un nuevo microservicio
+## Agregar un nuevo microservicio (desde su propio repo)
 
-1. Crea su carpeta con su `Dockerfile`
-2. Agrégalo en `docker-compose.yml` conectado a la red `aaaimx-net`
-3. Agrega la ruta en `gateway/src/main/resources/application.yml`:
+1. Crea el repo del nuevo servicio con su `Dockerfile`
+
+2. Crea un `docker-compose.yml` que se una a la red externa:
+
+```yaml
+services:
+  nuevoservicio:
+    build: .
+    container_name: nuevoservicio-service
+    ports:
+      - "XXXX:XXXX"
+    networks:
+      - aaaimx-net
+
+networks:
+  aaaimx-net:
+    external: true
+    name: aaaimx-net
+```
+
+3. Agrega la ruta en `gateway/src/main/resources/application.yml` (en este repo):
 
 ```yaml
 - id: nuevoservicio-route
-  uri: http://nuevoservicio:PUERTO
+  uri: http://nuevoservicio-service:XXXX
   predicates:
     - Path=/nuevoservicio/**
   filters:
@@ -225,6 +233,8 @@ AAAIMX/
 ```bash
 docker compose build --no-cache gateway && docker compose up -d gateway
 ```
+
+> El nombre en `uri:` debe coincidir con el `container_name` definido en el `docker-compose.yml` del microservicio.
 
 ---
 
