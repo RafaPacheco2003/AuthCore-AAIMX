@@ -1,0 +1,90 @@
+services:
+
+  # ── Base de datos ──────────────────────────────────────────────────
+  mysql:
+    image: mysql:8.0
+    container_name: auth-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: authdb
+    ports:
+      - "3307:3306"
+    volumes:
+      - auth-mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - aaaimx-net
+
+  # ── Auth (Spring Boot · puerto 8090) ───────────────────────────────
+  auth:
+    build:
+      context: ./auth
+      dockerfile: Dockerfile
+    container_name: auth-service
+    restart: unless-stopped
+    ports:
+      - "8090:8090"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/authdb?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: root
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - aaaimx-net
+
+  # ── Micro1 (Node.js / Express · puerto 3000) ──────────────────────
+  micro1:
+    build:
+      context: ./aaaimx_micro1
+      dockerfile: Dockerfile
+    container_name: micro1-service
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      PORT: 3000
+    networks:
+      - aaaimx-net
+
+  # ── App2 (.NET · puerto 4000) ──────────────────────────────────────
+  # Descomenta cuando tengas el Dockerfile listo en ./app2
+  # app2:
+  #   build:
+  #     context: ./app2
+  #     dockerfile: Dockerfile
+  #   container_name: app2-service
+  #   restart: unless-stopped
+  #   ports:
+  #     - "4000:4000"
+  #   networks:
+  #     - aaaimx-net
+
+  # ── API Gateway (Spring Cloud Gateway · puerto 8080) ───────────────
+  gateway:
+    build:
+      context: ./gateway
+      dockerfile: Dockerfile
+    container_name: api-gateway
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    depends_on:
+      - auth
+      - micro1
+      # - app2
+    networks:
+      - aaaimx-net
+
+networks:
+  aaaimx-net:
+    driver: bridge
+
+volumes:
+  auth-mysql-data:

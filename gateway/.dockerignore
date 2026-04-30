@@ -1,0 +1,32 @@
+# Maven build output
+target/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+*.classpath
+*.project
+*.settings/
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Docs
+*.md
+HELP.md
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Tests
+src/test/
+
+# Docker files (no hace falta dentro de la imagen)
+Dockerfile
+.dockerignore
+docker-compose*.yml
+*.sh
